@@ -49,7 +49,8 @@ bash 'logdir_existence_and_restart_apache2' do
       sleep 1
     done
   EOF
-  action :nothing
+  action :run
+  not_if { ::Dir.exist?(node[:apache][:log_dir]) }
   notifies :restart, resources(:service => 'apache2')
   timeout 70
 end
@@ -127,7 +128,7 @@ template "#{node[:apache][:dir]}/envvars" do
   owner 'root'
   group 'root'
   mode 0644
-  notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+  notifies :restart, resources(:service => 'apache2')
   only_if { platform?('ubuntu') && node[:platform_version] == '14.04' }
 end
 
@@ -142,7 +143,7 @@ template 'apache2.conf' do
   owner 'root'
   group 'root'
   mode 0644
-  notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+  notifies :restart, resources(:service => 'apache2')
 end
 
 if platform?('ubuntu') && node[:platform_version] == '14.04'
@@ -171,7 +172,7 @@ if platform?('ubuntu') && node[:platform_version] == '14.04'
     execute "enable config #{config}" do
       command "/usr/sbin/a2enconf #{config}"
       user 'root'
-      notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+      notifies :restart, resources(:service => 'apache2')
     end
   end
 else
@@ -182,7 +183,7 @@ else
     group 'root'
     mode 0644
     backup false
-    notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+    notifies :restart, resources(:service => 'apache2')
   end
 
   template 'charset' do
@@ -192,7 +193,7 @@ else
     group 'root'
     mode 0644
     backup false
-    notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+    notifies :restart, resources(:service => 'apache2')
   end
 
   template "#{node[:apache][:dir]}/ports.conf" do
@@ -200,7 +201,7 @@ else
     group 'root'
     owner 'root'
     mode 0644
-    notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+    notifies :restart, resources(:service => 'apache2')
   end
 end
 
@@ -214,7 +215,7 @@ template default_site_config do
   owner 'root'
   group 'root'
   mode 0644
-  notifies :run, resources(:bash => 'logdir_existence_and_restart_apache2')
+  notifies :restart, resources(:service => 'apache2')
 end
 
 include_recipe 'apache2::mod_status'
@@ -236,10 +237,6 @@ include_recipe 'apache2::mod_log_config' if platform_family?('rhel')
 include_recipe 'apache2::mod_ssl'
 include_recipe 'apache2::mod_expires'
 include_recipe 'apache2::logrotate'
-
-bash 'logdir_existence_and_restart_apache2' do
-  action :run
-end
 
 file "#{node[:apache][:document_root]}/index.html" do
   action :delete
